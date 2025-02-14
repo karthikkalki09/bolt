@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bolt Couture – Puzzle Game</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: #222;
+        color: #eee;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        user-select: none;
+        margin: 0;
+        padding: 0;
+      }
+      /* Both pages are full–screen sections */
+      .section {
+        min-height: 100vh;
+        display: none;
+      }
+      /* Sign Up Page (Front Page) styling with a fade–in effect */
+      #signupPage {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1e1e1e, #444);
+        animation: fadeIn 1s ease-in;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      /* Sign Up card styling */
+      #signupCard {
+        background: rgba(0, 0, 0, 0.8);
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+      }
+      /* Game Page styling */
+      #gamePage {
+        display: none;
+        padding-top: 60px; /* leave space for the fixed account icon */
+        position: relative;
+      }
+      /* Account icon (top left) */
+      #accountDropdown {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1100;
+      }
+      /* Canvas container for shake effect */
+      #canvasContainer {
+        position: relative;
+        width: 600px;
+        margin: 0 auto;
+      }
+      /* Game Canvas */
+      #gameCanvas {
+        background: #111;
+        border: 2px solid #555;
+        cursor: pointer;
+        display: block;
+      }
+      /* Flash overlay for invalid moves */
+      #flashOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 600px;
+        height: 600px;
+        pointer-events: none;
+      }
+      /* Shake animation */
+      @keyframes shake {
+        0% { transform: translate(0, 0); }
+        20% { transform: translate(-5px, 0); }
+        40% { transform: translate(5px, 0); }
+        60% { transform: translate(-5px, 0); }
+        80% { transform: translate(5px, 0); }
+        100% { transform: translate(0, 0); }
+      }
+      .shake {
+        animation: shake 0.5s;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================== Sign Up Page (Front Page) ===================== -->
+    <div id="signupPage" class="section">
+      <div id="signupCard" class="card text-light">
+        <h2 class="card-title text-center mb-3">Welcome to Bolt Couture Puzzle Game</h2>
+        <p class="card-text text-center">Please sign up to enter the game.</p>
+        <form id="signupForm">
+          <div class="mb-3">
+            <label for="signupEmail" class="form-label">Email Address</label>
+            <input type="email" class="form-control" id="signupEmail" required />
+          </div>
+          <div class="mb-3">
+            <label for="signupPassword" class="form-label">Password</label>
+            <input type="password" class="form-control" id="signupPassword" required />
+          </div>
+          <div class="mb-3">
+            <label for="signupConfirmPassword" class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" id="signupConfirmPassword" required />
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Enter Game Mode</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===================== Game Page ===================== -->
+    <div id="gamePage" class="section">
+      <!-- Account Dropdown (only an icon is visible) -->
+      <div id="accountDropdown" class="dropdown">
+        <button
+          class="btn btn-secondary dropdown-toggle"
+          type="button"
+          id="accountDropdownMenuButton"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
+          👤
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="accountDropdownMenuButton">
+          <li>
+            <span class="dropdown-item-text" id="accountEmailDisplay">✉️ Email</span>
+          </li>
+          <li><hr class="dropdown-divider" /></li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#leaderboardModal">
+              🏆 Leaderboard
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
+              ⚙️ Settings
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">
+              ❓ Help
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Level Header & Info -->
+      <div class="container text-center mt-3">
+        <h2 id="levelHeader">Level: 1</h2>
+        <div id="gameInfo">
+          <span id="timer">Time: 0s</span> | <span id="moveCounter">Moves: 0</span>
+        </div>
+      </div>
+
+      <!-- Game Canvas and Flash Overlay -->
+      <div id="canvasContainer" class="my-3">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <canvas id="flashOverlay" width="600" height="600"></canvas>
+      </div>
+
+      <!-- Control Buttons -->
+      <div id="controlButtons" class="text-center my-2">
+        <button id="undoButton" class="btn btn-secondary btn-sm mx-1" title="Undo">↺</button>
+        <button id="pauseButton" class="btn btn-secondary btn-sm mx-1" title="Pause">⏸</button>
+        <button id="restartButton" class="btn btn-secondary btn-sm mx-1" title="Restart">↻</button>
+        <button id="freeMoveButton" class="btn btn-secondary btn-sm mx-1" title="Toggle Free Move Mode">
+          Free Move: Off
+        </button>
+      </div>
+
+      <!-- Check Level Button -->
+      <div class="container text-center my-3">
+        <button id="checkLevelButton" class="btn btn-success">Check Level</button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer mt-auto py-3 bg-dark text-light text-center">
+        <div class="container">
+          <span>&copy; 2025 Bolt Couture Puzzle Game</span>
+        </div>
+      </footer>
+    </div>
+
+    <!-- ===================== Help Modal ===================== -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header">
+            <h5 class="modal-title" id="helpModalLabel">Help</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>
+              <strong>How to Play:</strong><br />
+              Drag and drop a colored ball from any rod. In this easier mode, level 1 has only 3 rods with 2 balls each. A move is accepted if the target rod is non–empty and its top ball’s color matches the dragged ball (unless “Free Move” is enabled).<br /><br />
+              Your moves and time are recorded. Complete levels with fewer moves and in less time for a better score!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Leaderboard Modal ===================== -->
+    <div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header">
+            <h5 class="modal-title" id="leaderboardModalLabel">Leaderboard</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="leaderboardContent">
+            <!-- Leaderboard entries will be injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Settings Modal ===================== -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header">
+            <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="freeMoveToggle" />
+              <label class="form-check-label" for="freeMoveToggle">
+                Enable Free Movement Mode
+              </label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="soundToggle" checked />
+              <label class="form-check-label" for="soundToggle">
+                Enable Sound Effects
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Bootstrap JS (includes Popper) ===================== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- ===================== JavaScript Code ===================== -->
+    <script>
+      /**************************************************************
+       * GLOBAL VARIABLES & GAME STATE
+       **************************************************************/
+      let userEmail = "";
+      let currentLevel = 1;
+      let moveCount = 0;
+      let startTime = 0;
+      let freeMovementMode = false;
+      let soundEnabled = true;
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const flashCanvas = document.getElementById("flashOverlay");
+      const flashCtx = flashCanvas.getContext("2d");
+      const WIDTH = canvas.width;
+      const HEIGHT = canvas.height;
+
+      let isPaused = false;
+      let isAnimating = false;
+      let undoStack = [];
+      let rods = []; // dynamically generated per level
+      let selectedBall = null; // for dragging
+      let animatingBall = null;
+      let lastTime = 0;
+      let flashTimer = 0; // milliseconds for feedback
+
+      // Colors available for balls
+      const COLORS = ["#FF4500", "#FFD700", "#1E90FF", "#32CD32", "#EE82EE", "#00CED1"];
+      // Rod and ball dimensions
+      const ROD_WIDTH = 8;
+      const ROD_HEIGHT = 100;
+      const BALL_RADIUS = 12;
+
+      /**************************************************************
+       * EASING FUNCTION (easeInOutQuad)
+       **************************************************************/
+      function easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      }
+
+      /**************************************************************
+       * DYNAMIC LEVEL MODEL
+       **************************************************************/
+      function initRodsForLevel(level) {
+        // For easier gameplay, level 1 is fixed to 3 rods with 2 balls each.
+        if (level === 1) {
+          const numRods = 3;
+          const rodsArray = [];
+          const gap = WIDTH / (numRods + 1);
+          for (let i = 0; i < numRods; i++) {
+            const x = gap * (i + 1);
+            const y = 150;
+            const balls = [];
+            for (let j = 0; j < 2; j++) {
+              const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+              const offset = -10 - j * 20;
+              balls.push({ color, offset });
+            }
+            rodsArray.push({ x, y, balls });
+          }
+          // Avoid starting in a solved state.
+          if (isLevelSolved(rodsArray)) {
+            return initRodsForLevel(level);
+          }
+          return rodsArray;
+        } else {
+          // For levels higher than 1, increase difficulty gradually.
+          const numRods = Math.min(8, 3 + Math.floor(level / 2));
+          const rodsArray = [];
+          const gap = WIDTH / (numRods + 1);
+          for (let i = 0; i < numRods; i++) {
+            const x = gap * (i + 1);
+            const y = 150;
+            const numBalls = 2 + Math.floor(Math.random() * Math.min(3, Math.floor(level / 3) + 1));
+            const balls = [];
+            for (let j = 0; j < numBalls; j++) {
+              const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+              const offset = -10 - j * 20;
+              balls.push({ color, offset });
+            }
+            rodsArray.push({ x, y, balls });
+          }
+          if (isLevelSolved(rodsArray)) {
+            return initRodsForLevel(level);
+          }
+          return rodsArray;
+        }
+      }
+
+      function isLevelSolved(rodsConfig) {
+        for (let rod of rodsConfig) {
+          if (rod.balls.length > 0) {
+            const firstColor = rod.balls[0].color;
+            for (let ball of rod.balls) {
+              if (ball.color !== firstColor) return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      /**************************************************************
+       * GAME INITIALIZATION
+       **************************************************************/
+      function initPuzzle() {
+        rods = initRodsForLevel(currentLevel);
+        undoStack = [];
+        isPaused = false;
+        selectedBall = null;
+        animatingBall = null;
+        moveCount = 0;
+        startTime = performance.now();
+        document.getElementById("levelHeader").textContent = "Level: " + currentLevel;
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+      }
+
+      /**************************************************************
+       * DRAWING & ANIMATION
+       **************************************************************/
+      function draw() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        // Draw each rod and its balls
+        rods.forEach(rod => {
+          ctx.save();
+          ctx.translate(rod.x, rod.y);
+          ctx.fillStyle = "#aaa";
+          ctx.fillRect(-ROD_WIDTH / 2, -ROD_HEIGHT / 2, ROD_WIDTH, ROD_HEIGHT);
+          rod.balls.forEach(ball => {
+            ctx.beginPath();
+            ctx.arc(0, ball.offset, BALL_RADIUS, 0, 2 * Math.PI);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+          });
+          ctx.restore();
+        });
+
+        // Draw animating ball (if any)
+        if (animatingBall) {
+          ctx.beginPath();
+          ctx.arc(animatingBall.currentX, animatingBall.currentY, BALL_RADIUS, 0, 2 * Math.PI);
+          ctx.fillStyle = animatingBall.ball.color;
+          ctx.fill();
+        }
+
+        // Draw the ball being dragged
+        if (selectedBall) {
+          ctx.beginPath();
+          ctx.arc(selectedBall.currentX, selectedBall.currentY, BALL_RADIUS, 0, 2 * Math.PI);
+          ctx.fillStyle = selectedBall.ball.color;
+          ctx.fill();
+        }
+
+        // Flash overlay for invalid move feedback
+        if (flashTimer > 0) {
+          const opacity = flashTimer / 200;
+          flashCtx.clearRect(0, 0, WIDTH, HEIGHT);
+          flashCtx.fillStyle = "rgba(255,0,0," + opacity + ")";
+          flashCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        } else {
+          flashCtx.clearRect(0, 0, WIDTH, HEIGHT);
+        }
+      }
+
+      function update(deltaTime) {
+        // Update timer and move counter
+        const elapsedTime = Math.floor((performance.now() - startTime) / 1000);
+        document.getElementById("timer").textContent = "Time: " + elapsedTime + "s";
+        document.getElementById("moveCounter").textContent = "Moves: " + moveCount;
+
+        // Update flash timer
+        if (flashTimer > 0) {
+          flashTimer -= deltaTime;
+          if (flashTimer < 0) flashTimer = 0;
+        }
+
+        // Update animating ball
+        if (animatingBall) {
+          let now = performance.now();
+          let t = (now - animatingBall.startTime) / animatingBall.duration;
+          if (t > 1) t = 1;
+          t = easeInOutQuad(t);
+          animatingBall.currentX = lerp(animatingBall.startX, animatingBall.endX, t);
+          animatingBall.currentY = lerp(animatingBall.startY, animatingBall.endY, t);
+          if (t === 1) {
+            if (!animatingBall.revert) {
+              const newRod = rods[animatingBall.newRodIndex];
+              newRod.balls.push({ color: animatingBall.ball.color, offset: animatingBall.newOffset });
+            } else {
+              const oldRod = rods[animatingBall.revertRodIndex];
+              oldRod.balls.splice(animatingBall.revertBallIndex, 0, {
+                color: animatingBall.ball.color,
+                offset: animatingBall.endY - oldRod.y
+              });
+            }
+            animatingBall = null;
+            isAnimating = false;
+          }
+        }
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function gameLoop(timestamp) {
+        if (isPaused) {
+          lastTime = timestamp;
+          requestAnimationFrame(gameLoop);
+          return;
+        }
+        const deltaTime = timestamp - lastTime;
+        lastTime = timestamp;
+        update(deltaTime);
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      /**************************************************************
+       * DRAG-AND-DROP HANDLERS WITH COLOR (or free–move) CHECK
+       **************************************************************/
+      // Helper: find the rod under the mouse pointer
+      function findRodUnderMouse(mouseX, mouseY) {
+        for (let r = 0; r < rods.length; r++) {
+          const rod = rods[r];
+          const dx = mouseX - rod.x;
+          const dy = mouseY - rod.y;
+          if (dx >= -ROD_WIDTH / 2 && dx <= ROD_WIDTH / 2 &&
+              dy >= -ROD_HEIGHT / 2 && dy <= ROD_HEIGHT / 2) {
+            return r;
+          }
+        }
+        return -1;
+      }
+
+      // mousedown: start dragging a ball if hit
+      canvas.addEventListener("mousedown", e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        for (let r = rods.length - 1; r >= 0; r--) {
+          const rod = rods[r];
+          for (let b = rod.balls.length - 1; b >= 0; b--) {
+            const ball = rod.balls[b];
+            const ballX = rod.x;
+            const ballY = rod.y + ball.offset;
+            const dist = Math.hypot(mouseX - ballX, mouseY - ballY);
+            if (dist < BALL_RADIUS) {
+              rod.balls.splice(b, 1);
+              selectedBall = {
+                oldRodIndex: r,
+                oldBallIndex: b,
+                ball: { color: ball.color },
+                originalX: ballX,
+                originalY: ballY,
+                dragOffsetX: mouseX - ballX,
+                dragOffsetY: mouseY - ballY,
+                currentX: ballX,
+                currentY: ballY
+              };
+              return;
+            }
+          }
+        }
+      });
+
+      // mousemove: update dragged ball's position
+      canvas.addEventListener("mousemove", e => {
+        if (!selectedBall) return;
+        const rect = canvas.getBoundingClientRect();
+        selectedBall.currentX = e.clientX - rect.left - selectedBall.dragOffsetX;
+        selectedBall.currentY = e.clientY - rect.top - selectedBall.dragOffsetY;
+      });
+
+      // mouseup: drop the ball and check for a valid move
+      canvas.addEventListener("mouseup", e => {
+        if (!selectedBall) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const newRodIndex = findRodUnderMouse(mouseX, mouseY);
+
+        // Check if dropped on a rod
+        if (newRodIndex !== -1) {
+          const targetRod = rods[newRodIndex];
+          // Valid move: target rod non-empty and colors match OR free move enabled
+          if (targetRod.balls.length > 0 &&
+              (targetRod.balls[targetRod.balls.length - 1].color === selectedBall.ball.color || freeMovementMode)) {
+            const newOffset = targetRod.balls[targetRod.balls.length - 1].offset - 20;
+            const newBallIndex = targetRod.balls.length;
+            animatingBall = {
+              ball: selectedBall.ball,
+              startX: selectedBall.currentX,
+              startY: selectedBall.currentY,
+              endX: targetRod.x,
+              endY: targetRod.y + newOffset,
+              startTime: performance.now(),
+              duration: 300,
+              newRodIndex: newRodIndex,
+              oldRodIndex: selectedBall.oldRodIndex,
+              oldBallIndex: selectedBall.oldBallIndex,
+              newBallIndex: newBallIndex,
+              newOffset: newOffset,
+              revert: false
+            };
+            undoStack.push({
+              type: "moveRod",
+              oldRodIndex: selectedBall.oldRodIndex,
+              oldBallIndex: selectedBall.oldBallIndex,
+              oldOffset: selectedBall.originalY - rods[selectedBall.oldRodIndex].y,
+              newRodIndex: newRodIndex,
+              newBallIndex: newBallIndex,
+              newOffset: newOffset,
+              color: selectedBall.ball.color
+            });
+            moveCount++;
+            document.getElementById("moveCounter").textContent = "Moves: " + moveCount;
+            if (soundEnabled) document.getElementById("moveSound").play();
+          } else {
+            // Invalid move: animate ball back and trigger effects
+            animatingBall = {
+              ball: selectedBall.ball,
+              startX: selectedBall.currentX,
+              startY: selectedBall.currentY,
+              endX: selectedBall.originalX,
+              endY: selectedBall.originalY,
+              startTime: performance.now(),
+              duration: 300,
+              revert: true,
+              revertRodIndex: selectedBall.oldRodIndex,
+              revertBallIndex: selectedBall.oldBallIndex
+            };
+            flashTimer = 200;
+            if (soundEnabled) document.getElementById("invalidSound").play();
+            const container = document.getElementById("canvasContainer");
+            container.classList.add("shake");
+            setTimeout(() => container.classList.remove("shake"), 500);
+          }
+        } else {
+          // Dropped outside any rod – revert the move with effects
+          animatingBall = {
+            ball: selectedBall.ball,
+            startX: selectedBall.currentX,
+            startY: selectedBall.currentY,
+            endX: selectedBall.originalX,
+            endY: selectedBall.originalY,
+            startTime: performance.now(),
+            duration: 300,
+            revert: true,
+            revertRodIndex: selectedBall.oldRodIndex,
+            revertBallIndex: selectedBall.oldBallIndex
+          };
+          flashTimer = 200;
+          if (soundEnabled) document.getElementById("invalidSound").play();
+          const container = document.getElementById("canvasContainer");
+          container.classList.add("shake");
+          setTimeout(() => container.classList.remove("shake"), 500);
+        }
+        selectedBall = null;
+      });
+
+      // Cancel drag if the mouse leaves the canvas
+      canvas.addEventListener("mouseleave", e => {
+        selectedBall = null;
+      });
+
+      /**************************************************************
+       * UNDO, PAUSE, RESTART & FREE MOVE CONTROLS
+       **************************************************************/
+      function doUndo() {
+        if (isAnimating) return;
+        if (undoStack.length === 0) return;
+        const lastAction = undoStack.pop();
+        if (lastAction.type === "moveRod") {
+          const newRod = rods[lastAction.newRodIndex];
+          newRod.balls.splice(lastAction.newBallIndex, 1);
+          const oldRod = rods[lastAction.oldRodIndex];
+          oldRod.balls.splice(lastAction.oldBallIndex, 0, {
+            color: lastAction.color || "#FFF",
+            offset: lastAction.oldOffset
+          });
+        }
+        moveCount++;
+        document.getElementById("moveCounter").textContent = "Moves: " + moveCount;
+        if (soundEnabled) document.getElementById("undoSound").play();
+      }
+
+      document.getElementById("pauseButton").addEventListener("click", () => {
+        isPaused = !isPaused;
+        document.getElementById("pauseButton").textContent = isPaused ? "▶" : "⏸";
+      });
+      document.getElementById("undoButton").addEventListener("click", doUndo);
+      document.getElementById("restartButton").addEventListener("click", () => {
+        initPuzzle();
+        document.getElementById("pauseButton").textContent = "⏸";
+      });
+      document.getElementById("freeMoveButton").addEventListener("click", () => {
+        freeMovementMode = !freeMovementMode;
+        document.getElementById("freeMoveButton").textContent = freeMovementMode ? "Free Move: On" : "Free Move: Off";
+        document.getElementById("freeMoveToggle").checked = freeMovementMode;
+      });
+
+      /**************************************************************
+       * LEVEL COMPLETION & LEADERBOARD
+       **************************************************************/
+      function updateLeaderboard() {
+        let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+        let levelEntries = leaderboard.filter(entry => entry.level === currentLevel);
+        levelEntries.sort((a, b) => {
+          if (a.moves === b.moves) return a.time - b.time;
+          return a.moves - b.moves;
+        });
+        let content = "<h5>Top Scores for Level " + currentLevel + "</h5>";
+        if (levelEntries.length === 0) {
+          content += "<p>No entries yet.</p>";
+        } else {
+          content += "<ol>";
+          levelEntries.slice(0, 5).forEach(entry => {
+            content += "<li>" + entry.email + ": " + entry.moves + " moves, " + entry.time + "s</li>";
+          });
+          content += "</ol>";
+        }
+        document.getElementById("leaderboardContent").innerHTML = content;
+      }
+
+      document.getElementById("checkLevelButton").addEventListener("click", () => {
+        if (isLevelSolved(rods)) {
+          if (soundEnabled) document.getElementById("levelCompleteSound").play();
+          alert("Level " + currentLevel + " complete!");
+          const elapsedTime = Math.floor((performance.now() - startTime) / 1000);
+          let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+          leaderboard.push({
+            email: userEmail,
+            level: currentLevel,
+            moves: moveCount,
+            time: elapsedTime
+          });
+          localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+          currentLevel++;
+          updateLeaderboard();
+          initPuzzle();
+        } else {
+          alert("Level not solved yet. Keep trying!");
+        }
+      });
+
+      /**************************************************************
+       * SETTINGS MODAL HANDLERS
+       **************************************************************/
+      document.getElementById("freeMoveToggle").addEventListener("change", function() {
+        freeMovementMode = this.checked;
+        document.getElementById("freeMoveButton").textContent = freeMovementMode ? "Free Move: On" : "Free Move: Off";
+      });
+      document.getElementById("soundToggle").addEventListener("change", function() {
+        soundEnabled = this.checked;
+      });
+
+      /**************************************************************
+       * SIGN-UP (FRONT PAGE) HANDLER
+       **************************************************************/
+      const signupPage = document.getElementById("signupPage");
+      const gamePage = document.getElementById("gamePage");
+      const accountEmailDisplay = document.getElementById("accountEmailDisplay");
+
+      document.getElementById("signupForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const email = document.getElementById("signupEmail").value;
+        const password = document.getElementById("signupPassword").value;
+        const confirmPassword = document.getElementById("signupConfirmPassword").value;
+        if (password !== confirmPassword) {
+          alert("Passwords do not match!");
+          return;
+        }
+        userEmail = email;
+        localStorage.setItem("currentUser", email);
+        accountEmailDisplay.textContent = "✉️ " + email;
+        // Transition from sign-up page to game page
+        signupPage.style.display = "none";
+        gamePage.style.display = "block";
+        initPuzzle();
+      });
+
+      window.addEventListener("load", function() {
+        const storedUser = localStorage.getItem("currentUser");
+        if (storedUser) {
+          userEmail = storedUser;
+          accountEmailDisplay.textContent = "✉️ " + userEmail;
+          signupPage.style.display = "none";
+          gamePage.style.display = "block";
+          initPuzzle();
+        } else {
+          signupPage.style.display = "flex";
+          gamePage.style.display = "none";
+        }
+      });
+    </script>
+
+    <!-- ===================== Audio Elements ===================== -->
+    <audio id="moveSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+    <audio id="invalidSound" src="https://actions.google.com/sounds/v1/cartoon/clang.ogg"></audio>
+    <audio id="levelCompleteSound" src="https://actions.google.com/sounds/v1/cartoon/boing.ogg"></audio>
+    <audio id="undoSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  </body>
+</html>
